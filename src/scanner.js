@@ -71,19 +71,37 @@ function isScannable(file) {
   return TEXT_EXTENSIONS.has(extension);
 }
 
-async function walk(directory) {
-  const entries = await readdir(directory, { withFileTypes: true });
+async function walk(directory, state) {
+  let entries;
+
+  try {
+    entries = await readdir(directory, {
+      withFileTypes: true,
+    });
+  } catch {
+    state.unreadable++;
+    return [];
+  }
+
   const files = [];
 
   for (const entry of entries) {
-    if (entry.isDirectory() && IGNORED_DIRECTORIES.has(entry.name)) {
+    if (
+      entry.isDirectory() &&
+      IGNORED_DIRECTORIES.has(entry.name)
+    ) {
       continue;
     }
 
-    const fullPath = path.join(directory, entry.name);
+    const fullPath = path.join(
+      directory,
+      entry.name
+    );
 
     if (entry.isDirectory()) {
-      files.push(...await walk(fullPath));
+      files.push(
+        ...(await walk(fullPath, state))
+      );
     } else if (isScannable(fullPath)) {
       files.push(fullPath);
     }
@@ -93,25 +111,31 @@ async function walk(directory) {
 }
 
 export async function scanDirectory(directory) {
-  const files = await walk(directory);
+  const state = {
+    unreadable: 0,
+  };
+
+  const files = await walk(directory, state);
   const results = [];
-  let unreadable = 0;
 
   for (const file of files) {
     try {
-      const contents = await readFile(file, "utf8");
+      const contents = await readFile(
+        file,
+        "utf8"
+      );
 
       results.push({
         file,
         contents,
       });
     } catch {
-      unreadable++;
+      state.unreadable++;
     }
   }
 
   return {
     files: results,
-    unreadable,
+    unreadable: state.unreadable,
   };
 }
