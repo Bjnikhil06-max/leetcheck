@@ -1,11 +1,15 @@
 import path from "node:path";
 import { scanDirectory } from "./scanner.js";
 import { detectSecrets } from "./detector.js";
+import { getGitHistory } from "./git.js";
 
-const folder = process.argv[2];
+const args = process.argv.slice(2);
+
+const historyMode = args.includes("--history");
+const folder = args.find((arg) => !arg.startsWith("--"));
 
 if (!folder) {
-  console.error("Usage: node src/cli.js <folder>");
+  console.error("Usage: node src/cli.js [--history] <folder>");
   process.exit(1);
 }
 
@@ -15,6 +19,11 @@ console.log("");
 console.log("LeakCheck");
 console.log("────────────────────────────────────────");
 console.log(`Scanning: ${absoluteFolder}`);
+
+if (historyMode) {
+  console.log("Mode: current files + Git history");
+}
+
 console.log("");
 
 let scan;
@@ -29,27 +38,39 @@ try {
 let totalFindings = 0;
 
 for (const file of scan.files) {
-    const findings = detectSecrets(file.contents, file.file);
+  const findings = detectSecrets(file.contents, file.file);
 
   for (const finding of findings) {
     totalFindings++;
-
-    console.log(
-      `[${finding.severity}] ${finding.type}`
+    printFinding(
+      finding,
+      path.relative(absoluteFolder, file.file)
     );
+  }
+}
 
-    console.log(
-      `  ${path.relative(absoluteFolder, file.file)}:${finding.line}`
-    );
+if (historyMode) {
+  console.log("Scanning Git history...\n");
 
-    console.log(`  ${finding.match}`);
-    console.log(`  Confidence: ${finding.confidence}%`);
+  try {
+    const commits = await getGitHistory(absoluteFolder);
 
-    if (finding.signals.length > 0) {
-        console.log(`  Signals: ${finding.signals.join(", ")}`);
+    for (const commit of commits) {
+      for (const line of commit.lines) {
+        const findings = detectSecrets(line, "Git history");
+
+        for (const finding of findings) {
+          totalFindings++;
+
+          printFinding(
+            finding,
+            `Git commit ${commit.commit.slice(0, 8)}`
+          );
+        }
+      }
     }
-    console.log("");
-    console.log("");
+  } catch (error) {
+    console.log(`Git history unavailable: ${error.message}`);
   }
 }
 
@@ -64,4 +85,17 @@ if (totalFindings > 0) {
   process.exitCode = 2;
 } else {
   console.log("✓ No potential secrets detected.");
+}
+
+function printFinding(finding, location) {
+  console.log(`[${finding.severity}] ${finding.type}`);
+  console.log(`  ${location}:${finding.line}`);
+  console.log(`  ${finding.match}`);
+  console.log(`  Confidence: ${finding.confidence}%`);
+
+  if (finding.signals.length > 0) {
+    console.log(`  Signals: ${finding.signals.join(", ")}`);
+  }
+
+  console.log("");
 }

@@ -1,5 +1,3 @@
 const username = "admin";
-const password = "superSecret123";
-const api_key = "abc123456789SECRET";
-
-const something = "a8Fj92kLmP3xQ7vN9sZ2";
+const password = "SUPER_FAKE_DEMO_PASSWORD_123";
+const api_key = "FAKE_API_KEY_123456789";
