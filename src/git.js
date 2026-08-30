@@ -27,6 +27,7 @@ export async function getGitHistory(directory) {
 function parseHistory(output) {
   const commits = [];
   let currentCommit = null;
+  let currentFile = "unknown";
 
   for (const line of output.split("\n")) {
     if (line.startsWith("COMMIT:")) {
@@ -36,6 +37,7 @@ function parseHistory(output) {
       };
 
       commits.push(currentCommit);
+      currentFile = "unknown";
       continue;
     }
 
@@ -43,8 +45,26 @@ function parseHistory(output) {
       continue;
     }
 
-    if (line.startsWith("-") && !line.startsWith("---")) {
-      currentCommit.lines.push(line.slice(1));
+    if (line.startsWith("diff --git")) {
+      const match = line.match(
+        /diff --git a\/(.+?) b\/(.+)$/
+      );
+
+      if (match) {
+        currentFile = match[2];
+      }
+
+      continue;
+    }
+
+    if (
+      line.startsWith("-") &&
+      !line.startsWith("---")
+    ) {
+      currentCommit.lines.push({
+        file: currentFile,
+        contents: line.slice(1),
+      });
     }
   }
 

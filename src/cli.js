@@ -35,11 +35,7 @@ try {
 } catch (error) {
   if (jsonMode) {
     console.log(
-      JSON.stringify(
-        { error: error.message },
-        null,
-        2
-      )
+      JSON.stringify({ error: error.message }, null, 2)
     );
   } else {
     console.error(
@@ -53,7 +49,7 @@ try {
 const findings = [];
 const historyFindings = [];
 
-// Scan current files.
+// Current files
 for (const file of scan.files) {
   const fileFindings = detectSecrets(
     file.contents,
@@ -72,7 +68,7 @@ for (const file of scan.files) {
   }
 }
 
-// Scan Git history.
+// Git history
 if (historyMode) {
   try {
     const commits = await getGitHistory(
@@ -82,14 +78,14 @@ if (historyMode) {
     for (const commit of commits) {
       for (const line of commit.lines) {
         const fileFindings = detectSecrets(
-          line,
-          "Git history"
+          line.contents,
+          line.file
         );
 
         for (const finding of fileFindings) {
           historyFindings.push({
             ...finding,
-            location: `Git commit ${commit.commit.slice(0, 8)}`,
+            location: `${line.file} @ ${commit.commit.slice(0, 8)}`,
             source: "history",
             commit: commit.commit,
           });
@@ -105,7 +101,6 @@ if (historyMode) {
   }
 }
 
-// Remove duplicate historical secrets.
 const uniqueHistoryFindings =
   deduplicateHistoryFindings(historyFindings);
 
