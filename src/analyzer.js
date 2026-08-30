@@ -18,6 +18,31 @@ const STRONG_SECRET_TYPES = new Set([
   "Bearer Token",
 ]);
 
+const PLACEHOLDER_VALUES = new Set([
+  "example",
+  "example123",
+  "changeme",
+  "change_me",
+  "password",
+  "yourpassword",
+  "your-password",
+  "your_password",
+  "your-api-key",
+  "your_api_key",
+  "your-api-key-here",
+  "your_api_key_here",
+  "your-token",
+  "your_token",
+  "your-token-here",
+  "your_token_here",
+  "placeholder",
+  "replace-me",
+  "replace_me",
+  "dummy",
+  "test",
+  "fake",
+]);
+
 export function analyzeFinding({
   type,
   value = "",
@@ -84,6 +109,20 @@ export function analyzeFinding({
     );
   }
 
+    const normalizedValue = value
+    .trim()
+    .toLowerCase();
+
+  if (
+    PLACEHOLDER_VALUES.has(normalizedValue) ||
+    normalizedValue.includes("<your-") ||
+    normalizedValue.includes("<your_") ||
+    normalizedValue.includes("your-api-key-here") ||
+    normalizedValue.includes("your_api_key_here")
+  ) {
+    score -= 35;
+    signals.push("likely placeholder value");
+  }
   score = Math.max(
     0,
     Math.min(100, score)

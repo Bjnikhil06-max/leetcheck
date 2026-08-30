@@ -308,3 +308,47 @@ test("example files reduce credential confidence", () => {
     )
   );
 });
+test("lowers confidence for obvious placeholder credentials", () => {
+  const source = `
+    const api_key = "your-api-key-here";
+  `;
+
+  const findings = detectSecrets(
+    source,
+    "config.js"
+  );
+
+  const finding = findings.find(
+    (item) => item.type === "API Key"
+  );
+
+  assert.ok(finding);
+  assert.ok(
+    finding.signals.includes(
+      "likely placeholder value"
+    )
+  );
+  assert.ok(finding.confidence < 55);
+});
+
+test("does not treat a realistic credential as a placeholder", () => {
+  const source = `
+    const api_key = "abc123456789SECRET";
+  `;
+
+  const findings = detectSecrets(
+    source,
+    "config.js"
+  );
+
+  const finding = findings.find(
+    (item) => item.type === "API Key"
+  );
+
+  assert.ok(finding);
+  assert.ok(
+    !finding.signals.includes(
+      "likely placeholder value"
+    )
+  );
+});
