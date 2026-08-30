@@ -253,3 +253,58 @@ test("never exposes a JWT in a finding", () => {
     );
   }
 });
+test("gives known credential formats an additional confidence signal", () => {
+  const source = `
+    const token = "ghp_1234567890abcdefghijklmnopqrstuv";
+  `;
+
+  const findings = detectSecrets(source, "config.js");
+
+  const githubFinding = findings.find(
+    (finding) => finding.type === "GitHub Token"
+  );
+
+  assert.ok(githubFinding);
+  assert.ok(
+    githubFinding.signals.includes(
+      "known credential format"
+    )
+  );
+});
+
+test("known credential formats have high confidence", () => {
+  const source = `
+    const token = "ghp_1234567890abcdefghijklmnopqrstuv";
+  `;
+
+  const findings = detectSecrets(source, "config.js");
+
+  const githubFinding = findings.find(
+    (finding) => finding.type === "GitHub Token"
+  );
+
+  assert.ok(githubFinding);
+  assert.ok(githubFinding.confidence >= 70);
+});
+
+test("example files reduce credential confidence", () => {
+  const source = `
+    const token = "ghp_1234567890abcdefghijklmnopqrstuv";
+  `;
+
+  const findings = detectSecrets(
+    source,
+    "examples/config.js"
+  );
+
+  const githubFinding = findings.find(
+    (finding) => finding.type === "GitHub Token"
+  );
+
+  assert.ok(githubFinding);
+  assert.ok(
+    githubFinding.signals.includes(
+      "possible example/test file"
+    )
+  );
+});
