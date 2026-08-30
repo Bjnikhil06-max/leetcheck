@@ -1,3 +1,3 @@
-# Example
+# Demo Project
 
-const password = "example_password";
+This project is used to test LeakCheck.
