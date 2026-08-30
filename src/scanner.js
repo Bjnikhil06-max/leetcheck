@@ -54,9 +54,21 @@ const IGNORED_DIRECTORIES = new Set([
 ]);
 
 function isScannable(file) {
+  const filename = path.basename(file);
   const extension = path.extname(file).toLowerCase();
 
-  return TEXT_EXTENSIONS.has(extension) || path.basename(file).startsWith(".env");
+  if (filename === ".env") {
+    return true;
+  }
+
+  if (
+    filename.startsWith(".env.") &&
+    !filename.endsWith(".temp")
+  ) {
+    return true;
+  }
+
+  return TEXT_EXTENSIONS.has(extension);
 }
 
 async function walk(directory) {
