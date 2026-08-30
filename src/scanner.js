@@ -52,6 +52,7 @@ const IGNORED_DIRECTORIES = new Set([
   "build",
   "coverage",
 ]);
+const IGNORE_FILE = ".leakcheckignore";
 
 function isScannable(file) {
   const filename = path.basename(file);
@@ -71,7 +72,11 @@ function isScannable(file) {
   return TEXT_EXTENSIONS.has(extension);
 }
 
-async function walk(directory, state) {
+async function walk(
+  directory,
+  state,
+  ignorePatterns
+) {
   let entries;
 
   try {
@@ -98,9 +103,24 @@ async function walk(directory, state) {
       entry.name
     );
 
+    if (
+      shouldIgnore(
+        fullPath,
+        directory,
+        entry.name,
+        ignorePatterns
+      )
+    ) {
+      continue;
+    }
+
     if (entry.isDirectory()) {
       files.push(
-        ...(await walk(fullPath, state))
+        ...(await walk(
+          fullPath,
+          state,
+          ignorePatterns
+        ))
       );
     } else if (isScannable(fullPath)) {
       files.push(fullPath);
@@ -115,7 +135,17 @@ export async function scanDirectory(directory) {
     unreadable: 0,
   };
 
-  const files = await walk(directory, state);
+  const ignorePatterns = await loadIgnorePatterns(
+    directory,
+    state
+  );
+
+  const files = await walk(
+    directory,
+    state,
+    ignorePatterns
+  );
+
   const results = [];
 
   for (const file of files) {
@@ -138,4 +168,60 @@ export async function scanDirectory(directory) {
     files: results,
     unreadable: state.unreadable,
   };
+}
+async function loadIgnorePatterns(directory, state) {
+  const ignoreFile = path.join(
+    directory,
+    IGNORE_FILE
+  );
+
+  try {
+    const contents = await readFile(
+      ignoreFile,
+      "utf8"
+    );
+
+    return contents
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(
+        (line) =>
+          line.length > 0 &&
+          !line.startsWith("#")
+      );
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return [];
+    }
+
+    state.unreadable++;
+    return [];
+  }
+}
+
+function shouldIgnore(
+  fullPath,
+  parentDirectory,
+  entryName,
+  ignorePatterns
+) {
+  if (entryName === IGNORE_FILE) {
+    return true;
+  }
+
+  const relativePath = path
+    .relative(
+      parentDirectory,
+      fullPath
+    )
+    .replaceAll("\\", "/");
+
+  return ignorePatterns.some(
+    (pattern) =>
+      pattern === entryName ||
+      pattern === relativePath ||
+      relativePath.startsWith(
+        `${pattern}/`
+      )
+  );
 }

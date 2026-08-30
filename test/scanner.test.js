@@ -107,3 +107,64 @@ test("reports unreadable paths without crashing", async () => {
   assert.equal(result.files.length, 0);
   assert.equal(result.unreadable, 1);
 });
+test("ignores directories listed in .leakcheckignore", async () => {
+  const directory = await mkdtemp(
+    path.join(tmpdir(), "leakcheck-")
+  );
+
+  await mkdir(
+    path.join(directory, "fixtures")
+  );
+
+  await writeFile(
+    path.join(directory, ".leakcheckignore"),
+    "fixtures\n"
+  );
+
+  await writeFile(
+    path.join(directory, "fixtures", "secret.js"),
+    'const password = "should_not_be_scanned";'
+  );
+
+  await writeFile(
+    path.join(directory, "app.js"),
+    "console.log('safe');"
+  );
+
+  const result = await scanDirectory(directory);
+
+  assert.equal(result.files.length, 1);
+  assert.ok(
+    result.files[0].file.endsWith("app.js")
+  );
+});
+
+test("ignores comments and blank lines in .leakcheckignore", async () => {
+  const directory = await mkdtemp(
+    path.join(tmpdir(), "leakcheck-")
+  );
+
+  await mkdir(
+    path.join(directory, "generated")
+  );
+
+  await writeFile(
+    path.join(directory, ".leakcheckignore"),
+    `
+# Generated files
+
+generated
+
+`
+  );
+
+  await writeFile(
+    path.join(directory, "generated", "output.js"),
+    "const password = 'should_not_be_scanned';"
+  );
+
+  const result = await scanDirectory(directory);
+
+  assert.equal(result.files.length, 0);
+  assert.equal(result.unreadable, 0);
+});
