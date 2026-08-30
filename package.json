@@ -1,0 +1,12 @@
+{
+  "name": "leakcheck",
+  "version": "0.1.0",
+  "description": "A zero-dependency secret scanner for source code and Git history.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/cli.js",
+    "test": "node --test"
+  },
+  "dependencies": {}
+}
