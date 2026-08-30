@@ -13,6 +13,7 @@ export async function getGitHistory(directory) {
       "--all",
       "-p",
       "--format=COMMIT:%H",
+      "--full-history",
       "--",
     ],
     {
