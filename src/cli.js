@@ -29,7 +29,7 @@ try {
 let totalFindings = 0;
 
 for (const file of scan.files) {
-  const findings = detectSecrets(file.contents);
+    const findings = detectSecrets(file.contents, file.file);
 
   for (const finding of findings) {
     totalFindings++;
@@ -43,6 +43,12 @@ for (const file of scan.files) {
     );
 
     console.log(`  ${finding.match}`);
+    console.log(`  Confidence: ${finding.confidence}%`);
+
+    if (finding.signals.length > 0) {
+        console.log(`  Signals: ${finding.signals.join(", ")}`);
+    }
+    console.log("");
     console.log("");
   }
 }

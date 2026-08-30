@@ -1,35 +1,36 @@
 import { looksRandom, calculateEntropy } from "./entropy.js";
+import { analyzeFinding } from "./analyzer.js";
 
 const patterns = [
   {
     name: "Hardcoded Password",
-    severity: "HIGH",
     regex: /\b(password|passwd|pwd)\s*[:=]\s*["'`]([^"'`]{4,})["'`]/gi,
+    valueGroup: 2,
+    variableGroup: 1,
   },
   {
     name: "API Key",
-    severity: "HIGH",
     regex: /\b(api[_-]?key)\s*[:=]\s*["'`]([A-Za-z0-9_\-]{12,})["'`]/gi,
+    valueGroup: 2,
+    variableGroup: 1,
   },
   {
     name: "Secret",
-    severity: "HIGH",
     regex: /\b(secret|client_secret)\s*[:=]\s*["'`]([^"'`]{8,})["'`]/gi,
+    valueGroup: 2,
+    variableGroup: 1,
   },
   {
     name: "Access Token",
-    severity: "HIGH",
     regex: /\b(access[_-]?token|auth[_-]?token)\s*[:=]\s*["'`]([^"'`]{12,})["'`]/gi,
-  },
-  {
-    name: "Private Key",
-    severity: "CRITICAL",
-    regex: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g,
+    valueGroup: 2,
+    variableGroup: 1,
   },
 ];
 
-export function detectSecrets(contents) {
+export function detectSecrets(contents, filePath = "") {
   const findings = [];
+  const detectedValues = new Set();
 
   for (const pattern of patterns) {
     pattern.regex.lastIndex = 0;
@@ -37,18 +38,33 @@ export function detectSecrets(contents) {
     let match;
 
     while ((match = pattern.regex.exec(contents)) !== null) {
-      const line = contents.slice(0, match.index).split("\n").length;
+      const value = match[pattern.valueGroup];
+      const variableName = match[pattern.variableGroup];
+
+      const line = contents
+        .slice(0, match.index)
+        .split("\n").length;
+
+      const analysis = analyzeFinding({
+        type: pattern.name,
+        value,
+        variableName,
+        filePath,
+      });
 
       findings.push({
         type: pattern.name,
-        severity: pattern.severity,
         line,
         match: redact(match[0]),
-        confidence: 95,
+        ...analysis,
       });
+
+      detectedValues.add(value);
     }
   }
 
+  // Detect suspicious random-looking strings that don't have
+  // an obvious credential variable name.
   const stringPattern = /["'`]([A-Za-z0-9+/=_-]{16,})["'`]/g;
 
   let stringMatch;
@@ -56,23 +72,47 @@ export function detectSecrets(contents) {
   while ((stringMatch = stringPattern.exec(contents)) !== null) {
     const value = stringMatch[1];
 
-    if (looksRandom(value)) {
-      const line = contents
-        .slice(0, stringMatch.index)
-        .split("\n")
-        .length;
-
-      findings.push({
-        type: "High-Entropy String",
-        severity: "MEDIUM",
-        line,
-        match: redact(value),
-        confidence: Math.min(
-          95,
-          Math.round(calculateEntropy(value) * 20)
-        ),
-      });
+    if (
+      detectedValues.has(value) ||
+      !looksRandom(value)
+    ) {
+      continue;
     }
+
+    const line = contents
+      .slice(0, stringMatch.index)
+      .split("\n").length;
+
+    const entropy = calculateEntropy(value);
+
+    const analysis = analyzeFinding({
+      type: "High-Entropy String",
+      value,
+      filePath,
+    });
+
+    // Entropy itself contributes to confidence.
+    analysis.confidence = Math.min(
+      100,
+      analysis.confidence + Math.round(entropy * 8)
+    );
+
+    if (analysis.confidence >= 65) {
+      analysis.severity = "HIGH";
+    } else if (analysis.confidence >= 40) {
+      analysis.severity = "MEDIUM";
+    }
+
+    analysis.signals.push(
+      `entropy ${entropy.toFixed(2)}`
+    );
+
+    findings.push({
+      type: "High-Entropy String",
+      line,
+      match: redact(value),
+      ...analysis,
+    });
   }
 
   return findings;
