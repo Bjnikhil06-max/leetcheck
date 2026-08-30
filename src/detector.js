@@ -1,3 +1,5 @@
+import { looksRandom, calculateEntropy } from "./entropy.js";
+
 const patterns = [
   {
     name: "Hardcoded Password",
@@ -42,6 +44,33 @@ export function detectSecrets(contents) {
         severity: pattern.severity,
         line,
         match: redact(match[0]),
+        confidence: 95,
+      });
+    }
+  }
+
+  const stringPattern = /["'`]([A-Za-z0-9+/=_-]{16,})["'`]/g;
+
+  let stringMatch;
+
+  while ((stringMatch = stringPattern.exec(contents)) !== null) {
+    const value = stringMatch[1];
+
+    if (looksRandom(value)) {
+      const line = contents
+        .slice(0, stringMatch.index)
+        .split("\n")
+        .length;
+
+      findings.push({
+        type: "High-Entropy String",
+        severity: "MEDIUM",
+        line,
+        match: redact(value),
+        confidence: Math.min(
+          95,
+          Math.round(calculateEntropy(value) * 20)
+        ),
       });
     }
   }
@@ -54,5 +83,7 @@ function redact(text) {
     return "***";
   }
 
-  return `${text.slice(0, 8)}${"*".repeat(Math.min(text.length - 8, 20))}`;
+  return `${text.slice(0, 8)}${"*".repeat(
+    Math.min(text.length - 8, 20)
+  )}`;
 }

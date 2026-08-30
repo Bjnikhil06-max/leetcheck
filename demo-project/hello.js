@@ -1,4 +1,5 @@
-\const username = "admin";
+const username = "admin";
 const password = "superSecret123";
 const api_key = "abc123456789SECRET";
-const token = "my_super_secret_access_token_12345";
+
+const something = "a8Fj92kLmP3xQ7vN9sZ2";
