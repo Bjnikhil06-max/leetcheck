@@ -216,3 +216,40 @@ test("does not expose GitHub tokens in findings", () => {
   assert.ok(githubFinding);
   assert.ok(!githubFinding.match.includes(secret));
 });
+test("never exposes a GitHub token in a finding", () => {
+  const secret =
+    "ghp_1234567890abcdefghijklmnopqrstuv";
+
+  const source = `
+    const token = "${secret}";
+  `;
+
+  const findings = detectSecrets(source, "config.js");
+
+  assert.ok(findings.length > 0);
+
+  for (const finding of findings) {
+    assert.ok(
+      !JSON.stringify(finding).includes(secret)
+    );
+  }
+});
+
+test("never exposes a JWT in a finding", () => {
+  const secret =
+    "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.abcdefghijklmnopqrstuvwxyz123456";
+
+  const source = `
+    const token = "${secret}";
+  `;
+
+  const findings = detectSecrets(source, "auth.js");
+
+  assert.ok(findings.length > 0);
+
+  for (const finding of findings) {
+    assert.ok(
+      !JSON.stringify(finding).includes(secret)
+    );
+  }
+});
