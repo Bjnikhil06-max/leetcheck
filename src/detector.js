@@ -27,6 +27,38 @@ const patterns = [
     valueGroup: 2,
     variableGroup: 1,
   },
+
+  // Common AWS access-key formats.
+  {
+    name: "AWS Access Key",
+    regex: /\b((?:AKIA|ASIA)[A-Z0-9]{16})\b/g,
+    valueGroup: 1,
+    variableGroup: null,
+  },
+
+  // Common GitHub token formats.
+  {
+    name: "GitHub Token",
+    regex: /\b((?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}))\b/g,
+    valueGroup: 1,
+    variableGroup: null,
+  },
+
+  // JSON Web Tokens.
+  {
+    name: "JWT",
+    regex: /\b(eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,})\b/g,
+    valueGroup: 1,
+    variableGroup: null,
+  },
+
+  // Authorization headers containing bearer credentials.
+  {
+    name: "Bearer Token",
+    regex: /\bBearer\s+([A-Za-z0-9._~+/=-]{16,})\b/gi,
+    valueGroup: 1,
+    variableGroup: null,
+  },
 ];
 
 export function detectSecrets(contents, filePath = "") {
@@ -40,7 +72,15 @@ export function detectSecrets(contents, filePath = "") {
 
     while ((match = pattern.regex.exec(contents)) !== null) {
       const value = match[pattern.valueGroup];
-      const variableName = match[pattern.variableGroup];
+
+      if (!value || detectedValues.has(value)) {
+        continue;
+      }
+
+      const variableName =
+        pattern.variableGroup === null
+          ? ""
+          : match[pattern.variableGroup];
 
       const line = contents
         .slice(0, match.index)
@@ -66,7 +106,7 @@ export function detectSecrets(contents, filePath = "") {
   }
 
   const privateKeyPattern =
-    /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g;
+    /-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----/g;
 
   let privateKeyMatch;
 
@@ -132,10 +172,12 @@ export function detectSecrets(contents, filePath = "") {
     findings.push({
       type: "High-Entropy String",
       line,
-      match: redact(value),
+      match: "[REDACTED]",
       fingerprint: fingerprint(value),
       ...analysis,
     });
+
+    detectedValues.add(value);
   }
 
   return findings;
@@ -148,11 +190,15 @@ function fingerprint(value) {
 }
 
 function redact(text) {
-  if (text.length <= 12) {
-    return "***";
+  const separator = text.search(/[:=]\s*/);
+
+  if (separator !== -1) {
+    const endOfSeparator =
+      text.slice(separator).match(/[:=]\s*/)[0].length +
+      separator;
+
+    return `${text.slice(0, endOfSeparator)}[REDACTED]`;
   }
 
-  return `${text.slice(0, 8)}${"*".repeat(
-    Math.min(text.length - 8, 20)
-  )}`;
+  return "[REDACTED]";
 }

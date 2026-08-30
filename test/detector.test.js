@@ -68,3 +68,151 @@ test("lowers confidence for example files", () => {
   assert.equal(findings.length, 1);
   assert.ok(findings[0].confidence < 75);
 });
+
+test("detects AWS access keys", () => {
+  const source = `
+    const key = "AKIAIOSFODNN7EXAMPLE";
+  `;
+
+  const findings = detectSecrets(source, "config.js");
+
+  assert.ok(
+    findings.some(
+      (finding) => finding.type === "AWS Access Key"
+    )
+  );
+});
+
+test("detects GitHub tokens", () => {
+  const source = `
+    const token = "ghp_1234567890abcdefghijklmnopqrstuv";
+  `;
+
+  const findings = detectSecrets(source, "config.js");
+
+  assert.ok(
+    findings.some(
+      (finding) => finding.type === "GitHub Token"
+    )
+  );
+});
+
+test("detects JWTs", () => {
+  const source = `
+    const token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.abcdefghijklmnopqrstuvwxyz123456";
+  `;
+
+  const findings = detectSecrets(source, "auth.js");
+
+  assert.ok(
+    findings.some(
+      (finding) => finding.type === "JWT"
+    )
+  );
+});
+
+test("detects bearer tokens", () => {
+  const source = `
+    const header = "Bearer abcdefghijklmnop123456";
+  `;
+
+  const findings = detectSecrets(source, "request.js");
+
+  assert.ok(
+    findings.some(
+      (finding) => finding.type === "Bearer Token"
+    )
+  );
+});
+
+test("detects private keys as critical findings", () => {
+  const source = `
+    -----BEGIN PRIVATE KEY-----
+    fake-demo-key
+    -----END PRIVATE KEY-----
+  `;
+
+  const findings = detectSecrets(source, "key.txt");
+
+  const privateKey = findings.find(
+    (finding) => finding.type === "Private Key"
+  );
+
+  assert.ok(privateKey);
+  assert.equal(privateKey.severity, "CRITICAL");
+  assert.equal(privateKey.confidence, 100);
+});
+
+test("redacts bare secrets completely", () => {
+  const secret =
+    "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.abcdefghijklmnopqrstuvwxyz123456";
+
+  const source = `
+    const token = "${secret}";
+  `;
+
+  const findings = detectSecrets(source, "auth.js");
+
+  const jwt = findings.find(
+    (finding) => finding.type === "JWT"
+  );
+
+  assert.ok(jwt);
+  assert.equal(jwt.match, "[REDACTED]");
+  assert.ok(!jwt.match.includes(secret));
+});
+test("does not flag ordinary text as a secret", () => {
+  const source = `
+    const message = "hello_world";
+    const title = "welcome_to_my_app";
+  `;
+
+  const findings = detectSecrets(source, "app.js");
+
+  assert.equal(findings.length, 0);
+});
+
+test("does not flag short random-looking strings", () => {
+  const source = `
+    const id = "a8Fj92kL";
+  `;
+
+  const findings = detectSecrets(source, "app.js");
+
+  assert.equal(findings.length, 0);
+});
+
+test("does not expose AWS keys in findings", () => {
+  const secret = "AKIAIOSFODNN7EXAMPLE";
+
+  const source = `
+    const key = "${secret}";
+  `;
+
+  const findings = detectSecrets(source, "config.js");
+
+  const awsFinding = findings.find(
+    (finding) => finding.type === "AWS Access Key"
+  );
+
+  assert.ok(awsFinding);
+  assert.ok(!awsFinding.match.includes(secret));
+});
+
+test("does not expose GitHub tokens in findings", () => {
+  const secret =
+    "ghp_1234567890abcdefghijklmnopqrstuv";
+
+  const source = `
+    const token = "${secret}";
+  `;
+
+  const findings = detectSecrets(source, "config.js");
+
+  const githubFinding = findings.find(
+    (finding) => finding.type === "GitHub Token"
+  );
+
+  assert.ok(githubFinding);
+  assert.ok(!githubFinding.match.includes(secret));
+});
