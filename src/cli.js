@@ -139,18 +139,22 @@ const uniqueHistoryFindings =
 
 findings.push(...uniqueHistoryFindings);
 
+const prioritizedFindings =
+  prioritizeFindings(findings);
+
 if (jsonMode) {
-  printJson(findings, scan);
+  printJson(prioritizedFindings, scan);
 } else {
   printTerminal(
-    findings,
+    prioritizedFindings,
     scan,
     absoluteFolder,
     historyMode
   );
 }
 
-const hasCriticalOrHigh = findings.some(
+const hasCriticalOrHigh =
+  prioritizedFindings.some(
   (finding) =>
     finding.severity === "CRITICAL" ||
     finding.severity === "HIGH"
@@ -158,7 +162,7 @@ const hasCriticalOrHigh = findings.some(
 
 if (strictMode && hasCriticalOrHigh) {
   process.exitCode = 2;
-} else if (findings.length > 0) {
+} else if (prioritizedFindings.length > 0) {
   process.exitCode = 2;
 } else {
   process.exitCode = 0;
@@ -177,7 +181,43 @@ function deduplicateHistoryFindings(historyFindings) {
 
   return [...unique.values()];
 }
+function prioritizeFindings(findings) {
+  const priority = {
+    "Private Key": 100,
+    "AWS Access Key": 95,
+    "GitHub Token": 95,
+    "JWT": 95,
+    "Bearer Token": 90,
+    "API Key": 85,
+    "Access Token": 80,
+    "Secret": 75,
+    "Hardcoded Password": 70,
+    "High-Entropy String": 40,
+  };
 
+  const grouped = new Map();
+
+  for (const finding of findings) {
+    const key = [
+      finding.source,
+      finding.location,
+      finding.line,
+      finding.fingerprint,
+    ].join(":");
+
+    const existing = grouped.get(key);
+
+    if (
+      !existing ||
+      (priority[finding.type] ?? 0) >
+        (priority[existing.type] ?? 0)
+    ) {
+      grouped.set(key, finding);
+    }
+  }
+
+  return [...grouped.values()];
+}
 function printTerminal(
   findings,
   scan,
@@ -227,7 +267,9 @@ function printTerminal(
 
   console.log(`Files scanned: ${scan.files.length}`);
   console.log(`Unreadable: ${scan.unreadable}`);
-  console.log(`Findings: ${findings.length}`);
+  console.log(
+  `Findings: ${prioritizedFindings.length}`
+);  
   console.log("");
 
   if (findings.length > 0) {

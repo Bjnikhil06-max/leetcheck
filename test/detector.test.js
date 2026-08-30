@@ -352,3 +352,32 @@ test("does not treat a realistic credential as a placeholder", () => {
     )
   );
 });
+test("does not report a high-entropy duplicate for a known API key", () => {
+  const source = `
+    const api_key = "abc123456789SECRET";
+  `;
+
+  const findings = detectSecrets(
+    source,
+    "config.js"
+  );
+
+  const fingerprints = findings.filter(
+    (finding) =>
+      finding.fingerprint ===
+      findings[0]?.fingerprint
+  );
+
+  const types = fingerprints.map(
+    (finding) => finding.type
+  );
+
+  assert.ok(
+    types.includes("API Key")
+  );
+
+  assert.equal(
+    types.includes("High-Entropy String"),
+    false
+  );
+});
