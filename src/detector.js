@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { looksRandom, calculateEntropy } from "./entropy.js";
 import { analyzeFinding } from "./analyzer.js";
 
@@ -56,6 +57,7 @@ export function detectSecrets(contents, filePath = "") {
         type: pattern.name,
         line,
         match: redact(match[0]),
+        fingerprint: fingerprint(value),
         ...analysis,
       });
 
@@ -63,8 +65,29 @@ export function detectSecrets(contents, filePath = "") {
     }
   }
 
-  // Detect suspicious random-looking strings that don't have
-  // an obvious credential variable name.
+  const privateKeyPattern =
+    /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g;
+
+  let privateKeyMatch;
+
+  while (
+    (privateKeyMatch = privateKeyPattern.exec(contents)) !== null
+  ) {
+    const line = contents
+      .slice(0, privateKeyMatch.index)
+      .split("\n").length;
+
+    findings.push({
+      type: "Private Key",
+      severity: "CRITICAL",
+      confidence: 100,
+      line,
+      match: "[PRIVATE KEY REDACTED]",
+      fingerprint: fingerprint(privateKeyMatch[0]),
+      signals: ["private key header"],
+    });
+  }
+
   const stringPattern = /["'`]([A-Za-z0-9+/=_-]{16,})["'`]/g;
 
   let stringMatch;
@@ -91,7 +114,6 @@ export function detectSecrets(contents, filePath = "") {
       filePath,
     });
 
-    // Entropy itself contributes to confidence.
     analysis.confidence = Math.min(
       100,
       analysis.confidence + Math.round(entropy * 8)
@@ -111,11 +133,18 @@ export function detectSecrets(contents, filePath = "") {
       type: "High-Entropy String",
       line,
       match: redact(value),
+      fingerprint: fingerprint(value),
       ...analysis,
     });
   }
 
   return findings;
+}
+
+function fingerprint(value) {
+  return createHash("sha256")
+    .update(value)
+    .digest("hex");
 }
 
 function redact(text) {

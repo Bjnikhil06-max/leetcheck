@@ -34,18 +34,26 @@ try {
   scan = await scanDirectory(absoluteFolder);
 } catch (error) {
   if (jsonMode) {
-    console.log(JSON.stringify({
-      error: error.message,
-    }, null, 2));
+    console.log(
+      JSON.stringify(
+        { error: error.message },
+        null,
+        2
+      )
+    );
   } else {
-    console.error(`Could not scan directory: ${error.message}`);
+    console.error(
+      `Could not scan directory: ${error.message}`
+    );
   }
 
   process.exit(1);
 }
 
 const findings = [];
+const historyFindings = [];
 
+// Scan current files.
 for (const file of scan.files) {
   const fileFindings = detectSecrets(
     file.contents,
@@ -64,6 +72,7 @@ for (const file of scan.files) {
   }
 }
 
+// Scan Git history.
 if (historyMode) {
   try {
     const commits = await getGitHistory(
@@ -72,13 +81,13 @@ if (historyMode) {
 
     for (const commit of commits) {
       for (const line of commit.lines) {
-        const historyFindings = detectSecrets(
+        const fileFindings = detectSecrets(
           line,
           "Git history"
         );
 
-        for (const finding of historyFindings) {
-          findings.push({
+        for (const finding of fileFindings) {
+          historyFindings.push({
             ...finding,
             location: `Git commit ${commit.commit.slice(0, 8)}`,
             source: "history",
@@ -95,6 +104,12 @@ if (historyMode) {
     }
   }
 }
+
+// Remove duplicate historical secrets.
+const uniqueHistoryFindings =
+  deduplicateHistoryFindings(historyFindings);
+
+findings.push(...uniqueHistoryFindings);
 
 if (jsonMode) {
   printJson(findings, scan);
@@ -119,6 +134,20 @@ if (strictMode && hasCriticalOrHigh) {
   process.exitCode = 2;
 } else {
   process.exitCode = 0;
+}
+
+function deduplicateHistoryFindings(historyFindings) {
+  const unique = new Map();
+
+  for (const finding of historyFindings) {
+    const key = `${finding.type}:${finding.fingerprint}`;
+
+    if (!unique.has(key)) {
+      unique.set(key, finding);
+    }
+  }
+
+  return [...unique.values()];
 }
 
 function printTerminal(
@@ -208,7 +237,7 @@ Usage:
 Options:
   --history    Scan Git history
   --json       Output machine-readable JSON
-  --strict     Fail only on HIGH/CRITICAL findings
+  --strict     Fail on HIGH/CRITICAL findings
   --help       Show this help
   --version    Show version
 
