@@ -26,18 +26,21 @@ export async function getGitHistory(directory) {
 
 function parseHistory(output) {
   const commits = [];
-  let currentCommit = null;
-  let currentFile = "unknown";
 
-  for (const line of output.split("\n")) {
+  let currentCommit = null;
+  let currentFile = null;
+
+  for (const line of output.split(/\r?\n/)) {
     if (line.startsWith("COMMIT:")) {
       currentCommit = {
-        commit: line.slice("COMMIT:".length).trim(),
+        commit: line
+          .slice("COMMIT:".length)
+          .trim(),
         lines: [],
       };
 
       commits.push(currentCommit);
-      currentFile = "unknown";
+      currentFile = null;
       continue;
     }
 
@@ -45,9 +48,9 @@ function parseHistory(output) {
       continue;
     }
 
-    if (line.startsWith("diff --git")) {
+    if (line.startsWith("diff --git ")) {
       const match = line.match(
-        /diff --git a\/(.+?) b\/(.+)$/
+        /^diff --git a\/(.+) b\/(.+)$/
       );
 
       if (match) {
@@ -57,9 +60,22 @@ function parseHistory(output) {
       continue;
     }
 
+    // Ignore diff metadata.
     if (
-      line.startsWith("-") &&
-      !line.startsWith("---")
+      line.startsWith("+++ ") ||
+      line.startsWith("--- ") ||
+      line.startsWith("@@ ") ||
+      line.startsWith("diff ") ||
+      line.startsWith("index ")
+    ) {
+      continue;
+    }
+
+    // Only inspect removed lines.
+    // Added lines are already scanned by the current-file scan.
+    if (
+      currentFile &&
+      line.startsWith("-")
     ) {
       currentCommit.lines.push({
         file: currentFile,
