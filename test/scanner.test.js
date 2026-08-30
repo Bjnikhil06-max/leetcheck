@@ -92,7 +92,7 @@ test("continues scanning when a directory cannot be read", async () => {
   assert.equal(result.unreadable, 0);
 });
 
-test("reports unreadable paths without crashing", async () => {
+test("reports missing root directories as errors", async () => {
   const directory = await mkdtemp(
     path.join(tmpdir(), "leakcheck-")
   );
@@ -102,10 +102,10 @@ test("reports unreadable paths without crashing", async () => {
     "missing"
   );
 
-  const result = await scanDirectory(missingPath);
-
-  assert.equal(result.files.length, 0);
-  assert.equal(result.unreadable, 1);
+  await assert.rejects(
+    () => scanDirectory(missingPath),
+    /Directory does not exist/
+  );
 });
 test("ignores directories listed in .leakcheckignore", async () => {
   const directory = await mkdtemp(

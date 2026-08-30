@@ -4,6 +4,31 @@ import { detectSecrets } from "./detector.js";
 import { getGitHistory } from "./git.js";
 
 const args = process.argv.slice(2);
+const supportedOptions = new Set([
+  "--help",
+  "-h",
+  "--version",
+  "-v",
+  "--history",
+  "--json",
+  "--strict",
+]);
+
+const unknownOptions = args.filter(
+  (arg) =>
+    arg.startsWith("-") &&
+    !supportedOptions.has(arg)
+);
+
+if (unknownOptions.length > 0) {
+  console.error(
+    `Unknown option: ${unknownOptions[0]}`
+  );
+  console.error(
+    "Use --help to see available options."
+  );
+  process.exit(1);
+}
 
 if (args.includes("--help") || args.includes("-h")) {
   printHelp();
@@ -35,7 +60,15 @@ try {
 } catch (error) {
   if (jsonMode) {
     console.log(
-      JSON.stringify({ error: error.message }, null, 2)
+      JSON.stringify(
+        {
+          tool: "LeakCheck",
+          version: "0.1.0",
+          error: error.message,
+        },
+        null,
+        2
+      )
     );
   } else {
     console.error(

@@ -134,6 +134,20 @@ export async function scanDirectory(directory) {
   const state = {
     unreadable: 0,
   };
+    try {
+    const entries = await readdir(directory);
+    void entries;
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      throw new Error(
+        `Directory does not exist: ${directory}`
+      );
+    }
+
+    throw new Error(
+      `Cannot access directory: ${directory}`
+    );
+  }
 
   const ignorePatterns = await loadIgnorePatterns(
     directory,
