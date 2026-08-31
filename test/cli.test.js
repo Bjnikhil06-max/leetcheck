@@ -55,7 +55,7 @@ test("returns exit code 0 when no secrets are found", async () => {
   );
 });
 
-test("returns exit code 2 when a secret is found", async () => {
+test("returns exit code 0 when a secret is found in normal mode", async () => {
   const directory = await mkdtemp(
     path.join(tmpdir(), "leakcheck-cli-")
   );
@@ -69,7 +69,7 @@ test("returns exit code 2 when a secret is found", async () => {
     directory,
   ]);
 
-  assert.equal(result.code, 2);
+  assert.equal(result.code, 0);
   assert.match(
     result.stdout,
     /Potential secrets detected/
@@ -108,7 +108,7 @@ test("JSON output remains valid when findings exist", async () => {
     directory,
   ]);
 
-  assert.equal(result.code, 2);
+  assert.equal(result.code, 0);
 
   const output = JSON.parse(
     result.stdout

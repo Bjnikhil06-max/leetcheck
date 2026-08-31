@@ -153,16 +153,13 @@ if (jsonMode) {
   );
 }
 
-const hasCriticalOrHigh =
-  prioritizedFindings.some(
+const hasCriticalOrHigh = findings.some(
   (finding) =>
     finding.severity === "CRITICAL" ||
     finding.severity === "HIGH"
 );
 
 if (strictMode && hasCriticalOrHigh) {
-  process.exitCode = 2;
-} else if (prioritizedFindings.length > 0) {
   process.exitCode = 2;
 } else {
   process.exitCode = 0;

@@ -1,40 +1,77 @@
-# LeakCheck
+# LeakCheck 🔍
 
-A zero-dependency secret scanner for source code and Git history.
+A zero-dependency secret scanner built entirely with the Node.js standard library.
 
-LeakCheck scans a project for accidentally exposed credentials and reports findings with confidence, severity, source location, and redacted output.
+LeakCheck scans source code, configuration files, and Git history for accidentally exposed credentials. Findings include confidence, severity, source location, detection signals, and redacted output.
 
-## Features
+## Why LeakCheck?
 
-- Detects hardcoded passwords
-- Detects API keys and secrets
-- Detects access and bearer tokens
-- Detects AWS access keys
-- Detects GitHub tokens
-- Detects JWTs
-- Detects private keys
-- Detects suspicious high-entropy strings
-- Scans Git history for removed secrets
-- Supports `.leakcheckignore`
-- Supports wildcard ignore patterns
-- Supports JSON output for CI
-- Supports strict mode
-- Redacts detected secret values
-- Uses no third-party runtime dependencies
-
-## Requirements
-
-- Node.js
-- Git (only required for `--history`)
-
-## Usage
-
-Install dependencies:
+A secret can disappear from the current source code but still remain in Git history.
 
 ```text
-npm install
+Secret added
+     ↓
+Committed to Git
+     ↓
+Deleted from current file
+     ↓
+Still exists in Git history
+     ↓
+LeakCheck detects it
 
-Run a scan:
+LeakCheck can detect both secrets in the current project and credentials that were removed from files but remain in Git history.
+
+Zero Dependency Guarantee
+
+LeakCheck has:
+
+No npm packages
+No third-party runtime dependencies
+No external secret-scanning libraries
+No copied or vendored third-party code
+
+It is built entirely with Node.js built-in modules, including:
+
+node:fs
+node:fs/promises
+node:path
+node:crypto
+node:child_process
+node:util
+node:test
+node:assert/strict
+
+For Git-history scanning, Git must also be installed and available on the system.
+
+Features
+Detects hardcoded passwords
+Detects API keys and secrets
+Detects access and bearer tokens
+Detects AWS access keys
+Detects GitHub tokens
+Detects JWTs
+Detects Slack tokens
+Detects Stripe live keys
+Detects Twilio keys
+Detects SendGrid API keys
+Detects private keys
+Detects suspicious high-entropy strings
+Scans Git history for removed secrets
+Supports .leakcheckignore
+Supports wildcard ignore patterns
+Supports JSON output for CI
+Supports strict mode
+Detects secrets in comments with reduced confidence
+Redacts detected secret values
+Uses no third-party runtime dependencies
+Requirements
+Node.js
+Git (only required for --history)
+Quick Start
+
+LeakCheck runs directly with Node.js. No package installation is required.
+
+Scan the current project:
 
 node src/cli.js .
 
@@ -46,11 +83,11 @@ Scan Git history:
 
 node src/cli.js --history .
 
-Output JSON:
+Output machine-readable JSON:
 
 node src/cli.js --json .
 
-Strict mode:
+Use strict mode for CI/CD:
 
 node src/cli.js --strict .
 
@@ -59,12 +96,17 @@ Show help:
 node src/cli.js --help
 Exit Codes
 Code	Meaning
-0	No findings
+0	Successful scan; findings do not fail normal mode
 1	Invalid or inaccessible scan target
-2	Potential secrets detected
+2	HIGH or CRITICAL findings detected in strict mode
+
+Normal mode reports findings without failing the command.
+
+Strict mode is intended for CI/CD pipelines and returns 2 when HIGH or CRITICAL findings are detected.
+
 Ignore Files
 
-Create .leakcheckignore in the project root.
+Create a .leakcheckignore file in the project root to exclude files or directories from scanning.
 
 Example:
 
@@ -74,6 +116,8 @@ secrets/
 config/*.local.js
 
 Blank lines and lines beginning with # are ignored.
+
+Wildcard patterns are supported.
 
 JSON Output
 
@@ -85,17 +129,20 @@ Findings contain:
 
 type
 line
-redacted match
+match
 fingerprint
 confidence
 severity
-detection signals
+signals
 location
 source
 
-Secret values themselves are never included in findings.
+Detected secret values are redacted and are never intentionally included in findings.
 
-Git History
+Example:
+
+API_KEY=[REDACTED]
+Git History Scanning
 
 Use:
 
@@ -103,33 +150,106 @@ node src/cli.js --history .
 
 LeakCheck examines removed lines from Git history and reports historical credentials without exposing their actual values.
 
+This helps detect a common security mistake:
+
+Secret added
+     ↓
+Committed to Git
+     ↓
+Secret deleted from the current file
+     ↓
+Credential remains in Git history
+     ↓
+LeakCheck finds the historical exposure
+
+Historical findings include the relevant commit information while keeping detected secret values redacted.
+
+Confidence and Severity
+
+LeakCheck uses multiple signals to prioritize findings.
+
+Signals can include:
+
+Known secret patterns
+Credential-like variable names
+Credential length
+Encoded or random-looking values
+Shannon entropy
+Placeholder values
+Example or test files
+Comments
+
+Comments and example/test files receive reduced confidence because they may contain intentionally documented or non-production credentials.
+
+Findings are classified as:
+
+CRITICAL
+HIGH
+MEDIUM
+LOW
+Security
+
+LeakCheck is a detection tool and does not guarantee that every secret will be found.
+
+If a real credential is detected, it should be revoked or rotated rather than merely deleted from the source file.
+
+See SECURITY.md for the security model, threat assumptions, redaction approach, and cryptographic decisions.
+
 Development
 
 Run the complete test suite:
 
 npm test
 
-LeakCheck uses Node.js built-in APIs and the built-in test runner.
+LeakCheck uses Node.js's built-in test runner and assertion library.
 
-See STDLIB.md for the standard-library implementation details.
+No third-party test framework is required.
+
+See STDLIB.md for details about the Node.js standard-library APIs used by the project.
 
 Project Structure
 src/
-  analyzer.js
-  cli.js
-  config.js
-  detector.js
-  entropy.js
-  git.js
-  scanner.js
+├── analyzer.js
+├── cli.js
+├── config.js
+├── detector.js
+├── entropy.js
+├── git.js
+└── scanner.js
 
 test/
-  cli.test.js
-  detector.test.js
-  entropy.test.js
-  git.test.js
-  scanner.test.js
+├── cli.test.js
+├── detector.test.js
+├── entropy.test.js
+├── git.test.js
+└── scanner.test.js
 
+demo-project/
+├── .env.example
+├── Readme.md
+├── hello.js
+└── image.png
+
+.leakcheckignore
+.gitignore
+LICENSE
+package.json
+README.md
+SECURITY.md
+STDLIB.md
 License
 
 See LICENSE.
+
+
+### One important point
+
+I deliberately changed the old:
+
+```text
+Install dependencies:
+npm install
+
+to:
+
+LeakCheck runs directly with Node.js. No package installation is required.
