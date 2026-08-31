@@ -74,6 +74,7 @@ function isScannable(file) {
 
 async function walk(
   directory,
+  rootDirectory,
   state,
   ignorePatterns
 ) {
@@ -106,7 +107,7 @@ async function walk(
     if (
       shouldIgnore(
         fullPath,
-        directory,
+        rootDirectory,
         entry.name,
         ignorePatterns
       )
@@ -118,6 +119,7 @@ async function walk(
       files.push(
         ...(await walk(
           fullPath,
+          rootDirectory,
           state,
           ignorePatterns
         ))
@@ -155,6 +157,7 @@ export async function scanDirectory(directory) {
   );
 
   const files = await walk(
+    directory,
     directory,
     state,
     ignorePatterns
@@ -215,7 +218,7 @@ async function loadIgnorePatterns(directory, state) {
 
 function shouldIgnore(
   fullPath,
-  parentDirectory,
+  rootDirectory,
   entryName,
   ignorePatterns
 ) {
@@ -225,17 +228,34 @@ function shouldIgnore(
 
   const relativePath = path
     .relative(
-      parentDirectory,
+      rootDirectory,
       fullPath
     )
     .replaceAll("\\", "/");
 
-  return ignorePatterns.some(
-    (pattern) =>
+  return ignorePatterns.some((pattern) => {
+    if (
       pattern === entryName ||
       pattern === relativePath ||
       relativePath.startsWith(
         `${pattern}/`
       )
-  );
+    ) {
+      return true;
+    }
+
+    if (pattern.includes("*")) {
+      const regex = new RegExp(
+        "^" +
+          pattern
+            .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+            .replaceAll("*", ".*") +
+          "$"
+      );
+
+      return regex.test(relativePath);
+    }
+
+    return false;
+  });
 }

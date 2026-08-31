@@ -168,3 +168,63 @@ generated
   assert.equal(result.files.length, 0);
   assert.equal(result.unreadable, 0);
 });
+test("supports wildcard patterns in .leakcheckignore", async () => {
+  const directory = await mkdtemp(
+    path.join(tmpdir(), "leakcheck-")
+  );
+
+  await writeFile(
+    path.join(directory, ".leakcheckignore"),
+    "*.generated.js\n"
+  );
+
+  await writeFile(
+    path.join(directory, "app.generated.js"),
+    "const password = 'secret';"
+  );
+
+  await writeFile(
+    path.join(directory, "app.js"),
+    "console.log('safe');"
+  );
+
+  const result = await scanDirectory(directory);
+
+  assert.equal(result.files.length, 1);
+  assert.ok(
+    result.files[0].file.endsWith("app.js")
+  );
+});
+
+test("supports wildcard patterns in nested paths", async () => {
+  const directory = await mkdtemp(
+    path.join(tmpdir(), "leakcheck-")
+  );
+
+  await mkdir(
+    path.join(directory, "config"),
+    { recursive: true }
+  );
+
+  await writeFile(
+    path.join(directory, ".leakcheckignore"),
+    "config/*.local.js\n"
+  );
+
+  await writeFile(
+    path.join(directory, "config", "secret.local.js"),
+    "const password = 'secret';"
+  );
+
+  await writeFile(
+    path.join(directory, "config", "safe.js"),
+    "console.log('safe');"
+  );
+
+  const result = await scanDirectory(directory);
+
+  assert.equal(result.files.length, 1);
+  assert.ok(
+    result.files[0].file.endsWith("safe.js")
+  );
+});
