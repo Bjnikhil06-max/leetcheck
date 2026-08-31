@@ -5,25 +5,25 @@ import { analyzeFinding } from "./analyzer.js";
 const patterns = [
   {
     name: "Hardcoded Password",
-    regex: /\b(password|passwd|pwd)\s*[:=]\s*["'`]?([^"'`\s,;]{4,})["'`]?(?=\s|;|,|$)/gi,
+    regex: /["'`]?\b(password|passwd|pwd)\b["'`]?\s*[:=]\s*["'`]?([^"'`\s,;]{4,})["'`]?(?=\s|;|,|$)/gi,
     valueGroup: 2,
     variableGroup: 1,
   },
   {
     name: "API Key",
-    regex: /\b(api[_-]?key|apikey)\s*[:=]\s*["'`]?([A-Za-z0-9_\-]{12,})["'`]?(?=\s|;|,|$)/gi,
+    regex: /["'`]?\b(api[_-]?key|apikey)\b["'`]?\s*[:=]\s*["'`]?([A-Za-z0-9_\-]{12,})["'`]?(?=\s|;|,|$)/gi,
     valueGroup: 2,
     variableGroup: 1,
   },
   {
     name: "Secret",
-    regex: /\b(secret|client_secret)\s*[:=]\s*["'`]?([^"'`\s,;]{8,})["'`]?(?=\s|;|,|$)/gi,
+    regex: /["'`]?\b(secret|client_secret)\b["'`]?\s*[:=]\s*["'`]?([^"'`\s,;]{8,})["'`]?(?=\s|;|,|$)/gi,
     valueGroup: 2,
     variableGroup: 1,
   },
   {
-    name: "Access Token",
-    regex: /\b(access[_-]?token|auth[_-]?token)\s*[:=]\s*["'`]?([A-Za-z0-9_\-]{12,})["'`]?(?=\s|;|,|$)/gi,
+    name: "Access Token",regex: /["'`]?\b(access[_-]?token|auth[_-]?token)\b["'`]?\s*[:=]\s*["'`]?([A-Za-z0-9_\-]{12,})["'`]?(?=\s|;|,|$)/gi,
+    
     valueGroup: 2,
     variableGroup: 1,
   },

@@ -381,3 +381,80 @@ test("does not report a high-entropy duplicate for a known API key", () => {
     false
   );
 });
+test("detects API keys in JSON configuration", () => {
+  const source = `
+    {
+      "apiKey": "abc123456789SECRET"
+    }
+  `;
+
+  const findings = detectSecrets(
+    source,
+    "config.json"
+  );
+
+  assert.ok(
+    findings.some(
+      (finding) => finding.type === "API Key"
+    )
+  );
+});
+
+test("detects secrets in YAML configuration", () => {
+  const source = `
+    api_key: abc123456789SECRET
+  `;
+
+  const findings = detectSecrets(
+    source,
+    "config.yml"
+  );
+
+  assert.ok(
+    findings.some(
+      (finding) => finding.type === "API Key"
+    )
+  );
+});
+
+test("detects access tokens in JSON configuration", () => {
+  const source = `
+    {
+      "access_token": "abc123456789TOKEN"
+    }
+  `;
+
+  const findings = detectSecrets(
+    source,
+    "config.json"
+  );
+
+  assert.ok(
+    findings.some(
+      (finding) => finding.type === "Access Token"
+    )
+  );
+});
+
+test("redacts structured configuration secrets", () => {
+  const secret = "SUPER_SECRET_VALUE_123456";
+
+  const source = `
+    {
+      "secret": "${secret}"
+    }
+  `;
+
+  const findings = detectSecrets(
+    source,
+    "config.json"
+  );
+
+  assert.ok(findings.length > 0);
+
+  for (const finding of findings) {
+    assert.ok(
+      !finding.match.includes(secret)
+    );
+  }
+});
