@@ -48,6 +48,7 @@ export function analyzeFinding({
   value = "",
   variableName = "",
   filePath = "",
+  isComment=false,
 }) {
   let score = 0;
   const signals = [];
@@ -108,6 +109,15 @@ export function analyzeFinding({
       "possible example/test file"
     );
   }
+    if (isComment) {
+    score -= 20;
+    signals.push("comment");
+  }
+
+  score = Math.max(
+    0,
+    Math.min(100, score)
+  );
 
     const normalizedValue = value
     .trim()

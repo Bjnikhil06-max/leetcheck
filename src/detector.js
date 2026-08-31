@@ -59,6 +59,37 @@ const patterns = [
     valueGroup: 1,
     variableGroup: null,
   },
+    // Slack tokens.
+  {
+    name: "Slack Token",
+    regex: /\b((?:xoxb|xoxp|xoxa)-[A-Za-z0-9-]{20,})\b/g,
+    valueGroup: 1,
+    variableGroup: null,
+  },
+
+  // Stripe live keys.
+  {
+    name: "Stripe Key",
+    regex: /\b((?:sk|pk)_live_[A-Za-z0-9]{16,})\b/g,
+    valueGroup: 1,
+    variableGroup: null,
+  },
+
+  // Twilio Account SID / API keys.
+  {
+    name: "Twilio Key",
+    regex: /\b((?:SK|AC)[A-Za-z0-9]{30,})\b/g,
+    valueGroup: 1,
+    variableGroup: null,
+  },
+
+  // SendGrid API keys.
+  {
+    name: "SendGrid API Key",
+    regex: /\b(SG\.[A-Za-z0-9_-]{20,})\b/g,
+    valueGroup: 1,
+    variableGroup: null,
+  },
 ];
 
 export function detectSecrets(contents, filePath = "") {
@@ -82,16 +113,24 @@ export function detectSecrets(contents, filePath = "") {
           ? ""
           : match[pattern.variableGroup];
 
+      
+      
       const line = contents
-        .slice(0, match.index)
-        .split("\n").length;
-
-      const analysis = analyzeFinding({
-        type: pattern.name,
-        value,
-        variableName,
-        filePath,
-      });
+      .slice(0, match.index)
+      .split("\n").length;
+      const lineStart =
+      contents.lastIndexOf("\n", match.index - 1) + 1;
+      const linePrefix =
+      contents.slice(lineStart, match.index);
+      const isComment =
+        /^\s*(\/\/|#|\/\*|\*)/.test(linePrefix);
+        const analysis = analyzeFinding({
+            type: pattern.name,
+            value,
+            variableName,
+            filePath,
+            isComment,
+        });
 
       findings.push({
         type: pattern.name,

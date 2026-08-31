@@ -458,3 +458,120 @@ test("redacts structured configuration secrets", () => {
     );
   }
 });
+test("detects Slack bot tokens", () => {
+  const findings = detectSecrets(
+    "xoxb-TEST-12345678901234567890",
+    "config.js"
+  );
+
+  assert.ok(
+    findings.some(
+      (finding) => finding.type === "Slack Token"
+    )
+  );
+});
+
+test("detects Stripe live keys", () => {
+  const findings = detectSecrets(
+    "sk_live_TEST1234567890123456",
+    "config.js"
+  );
+
+  assert.ok(
+    findings.some(
+      (finding) => finding.type === "Stripe Key"
+    )
+  );
+});
+
+test("detects Twilio keys", () => {
+  const findings = detectSecrets(
+    "SK123456789012345678901234567890",
+    "config.js"
+  );
+
+  assert.ok(
+    findings.some(
+      (finding) => finding.type === "Twilio Key"
+    )
+  );
+});
+
+test("detects SendGrid API keys", () => {
+  const findings = detectSecrets(
+    "SG.123456789012345678901234567890",
+    "config.js"
+  );
+
+  assert.ok(
+    findings.some(
+      (finding) => finding.type === "SendGrid API Key"
+    )
+  );
+});
+
+test("redacts provider-specific tokens", () => {
+  const secrets = [
+    "xoxb-TEST-12345678901234567890",
+    "sk_live_TEST1234567890123456",
+    "SK123456789012345678901234567890",
+    "SG.123456789012345678901234567890",
+  ];
+
+  for (const secret of secrets) {
+    const findings = detectSecrets(
+      secret,
+      "config.js"
+    );
+
+    assert.ok(findings.length > 0);
+
+    for (const finding of findings) {
+      assert.equal(
+        finding.match,
+        "[REDACTED]"
+      );
+
+      assert.ok(
+        !finding.match.includes(secret)
+      );
+    }
+  }
+});
+test("detects secrets in comments with lower confidence", () => {
+  const findings = detectSecrets(
+    "// API_KEY=12345678901234567890",
+    "app.js"
+  );
+
+  assert.ok(findings.length > 0);
+
+  const finding = findings.find(
+    (item) => item.type === "API Key"
+  );
+
+  assert.ok(finding);
+  assert.ok(finding.confidence < 90);
+  assert.ok(
+    finding.signals.includes("comment")
+  );
+});
+
+test("detects passwords in comments with lower confidence", () => {
+  const findings = detectSecrets(
+    "// password = supersecret123456",
+    "app.js"
+  );
+
+  assert.ok(findings.length > 0);
+
+  const finding = findings.find(
+    (item) => item.type === "Hardcoded Password"
+  );
+
+  assert.ok(finding);
+  assert.ok(finding.confidence < 90);
+  assert.ok(
+    finding.signals.includes("comment")
+  );
+});
